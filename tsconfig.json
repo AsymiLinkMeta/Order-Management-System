@@ -1,27 +1,25 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
-    "esModuleInterop": true,
-    "module": "ES6",
-    "sourceMap": true,
-    "jsx": "react",
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
     "strict": true,
-    "target": "ES5",
-    "allowJs": true,
-    "checkJs": false,
-    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
     "paths": {
-      "shared/*": [
-        "hbw/app/javascript/packs/hbw/components/shared/*"
-      ],
-      "messenger": [
-        "app/javascript/utils/messenger"
-      ],
+      "@/*": ["./src/*"]
     }
   },
-  "exclude": [
-    "node_modules",
-    "vendor",
-    "public",
-  ],
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
