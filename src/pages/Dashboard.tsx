@@ -210,62 +210,6 @@ const Dashboard: React.FC = () => {
         </div>
       )}
     </>
-      {/* Recent orders */}
-      <div className="card">
-        <div className="card-header">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Recent Orders</h3>
-            <Link
-              to="/orders"
-              className="text-sm font-medium text-primary-600 hover:text-primary-500"
-            >
-              View all
-            </Link>
-          </div>
-        </div>
-        <div className="card-content">
-          <div className="overflow-hidden">
-            <table className="table">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-head">Order Code</th>
-                  <th className="table-head">Type</th>
-                  <th className="table-head">Status</th>
-                  <th className="table-head">Assigned To</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order) => (
-                  <tr key={order.code} className="table-row">
-                    <td className="table-cell">
-                      <Link
-                        to={`/orders/${order.code}`}
-                        className="font-medium text-primary-600 hover:text-primary-500"
-                      >
-                        {order.code}
-                      </Link>
-                    </td>
-                    <td className="table-cell text-gray-900">{order.orderType.name}</td>
-                    <td className="table-cell">
-                      <StatusBadge status={order.state} size="sm" />
-                    </td>
-                    <td className="table-cell text-gray-500">
-                      {order.user ? `${order.user.name} ${order.user.lastName}` : 'Unassigned'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {(ordersLoading || tasksLoading) && (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-        </div>
-      )}
-    </div>
   )
 }
 
