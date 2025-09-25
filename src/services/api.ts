@@ -1,265 +1,375 @@
-import axios from 'axios'
+import { supabase } from '../lib/supabase'
 import { User, Order, OrderType, Task, Profile } from '../types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const user = localStorage.getItem('user')
-  if (user) {
-    const userData = JSON.parse(user)
-    if (userData.apiToken) {
-      config.headers.Authorization = `Bearer ${userData.apiToken}`
-    }
-  }
-  return config
-})
-
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('user')
-      window.location.href = '/login'
-    }
-    return Promise.reject(error)
-  }
-)
-
 export const authAPI = {
-  login: async (email: string, password: string) => {
-    const response = await api.post('/users/sign_in', {
-      user: { email, password }
+  signUp: async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password
     })
-    return response.data
+    if (error) throw error
+    return data
   },
   
-  logout: async () => {
-    await api.delete('/users/sign_out')
-  }
-}
-
-export const ordersAPI = {
-  getAll: async (params?: any) => {
-    const response = await api.get('/orders', { params })
-    return response.data.orders
+  signIn: async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    if (error) throw error
+    return data
   },
   
-  getByCode: async (code: string) => {
-    const response = await api.get(`/orders/${code}`)
-    return response.data.order
+  signOut: async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
   },
   
-  create: async (orderData: any) => {
-    const response = await api.post('/orders', { order: orderData })
-    return response.data.order
-  },
-  
-  update: async (code: string, orderData: any) => {
-    const response = await api.put(`/orders/${code}`, { order: orderData })
-    return response.data.order
-  },
-  
-  searchByCode: async (code: string) => {
-    const response = await api.get(`/orders/search_by/code?value=${code}`)
-    return response.data
-  },
-  
-  searchByExtCode: async (extCode: string) => {
-    const response = await api.get(`/orders/search_by/ext_code?value=${extCode}`)
-    return response.data
+  getCurrentUser: async () => {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error) throw error
+    return user
   }
 }
 
 export const usersAPI = {
   getAll: async (params?: any) => {
-    const response = await api.get('/users', { params })
-    return response.data.users
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        user:auth.users(email)
+      `)
+    if (error) throw error
+    
+    return data?.map(profile => ({
+      id: profile.user_id,
+      email: profile.user?.email,
+      name: profile.name,
+      lastName: profile.last_name,
+      middleName: profile.middle_name,
+      company: profile.company,
+      department: profile.department,
+      role: profile.role,
+      blocked: profile.blocked,
+      external: profile.external,
+      apiToken: profile.api_token,
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at
+    })) || []
   },
   
   getById: async (id: number) => {
-    const response = await api.get(`/users/${id}`)
-    return response.data.user
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        user:auth.users(email)
+      `)
+      .eq('user_id', id)
+      .single()
+    if (error) throw error
+    
+    return {
+      id: data.user_id,
+      email: data.user?.email,
+      name: data.name,
+      lastName: data.last_name,
+      middleName: data.middle_name,
+      company: data.company,
+      department: data.department,
+      role: data.role,
+      blocked: data.blocked,
+      external: data.external,
+      apiToken: data.api_token,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    }
   },
   
   create: async (userData: any) => {
-    const response = await api.post('/users/add', { user: userData })
-    return response.data.user
+    // First create the user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password
+    })
+    
+    if (authError) throw authError
+    if (!authData.user) throw new Error('Failed to create user')
+    
+    // Then create the profile
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: authData.user.id,
+        name: userData.name,
+        last_name: userData.lastName,
+        middle_name: userData.middleName,
+        company: userData.company,
+        department: userData.department,
+        role: userData.role || 'user',
+        blocked: userData.blocked || false,
+        external: userData.external || false
+      })
+      .select()
+      .single()
+    
+    if (profileError) throw profileError
+    
+    return {
+      id: authData.user.id,
+      email: authData.user.email,
+      name: profileData.name,
+      lastName: profileData.last_name,
+      middleName: profileData.middle_name,
+      company: profileData.company,
+      department: profileData.department,
+      role: profileData.role,
+      blocked: profileData.blocked,
+      external: profileData.external,
+      apiToken: profileData.api_token,
+      createdAt: profileData.created_at,
+      updatedAt: profileData.updated_at
+    }
   },
   
   update: async (id: number, userData: any) => {
-    const response = await api.put(`/users/${id}`, { user: userData })
-    return response.data.user
+    const updateData: any = {
+      name: userData.name,
+      last_name: userData.lastName,
+      middle_name: userData.middleName,
+      company: userData.company,
+      department: userData.department,
+      role: userData.role,
+      blocked: userData.blocked,
+      external: userData.external
+    }
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('user_id', id)
+      .select(`
+        *,
+        user:auth.users(email)
+      `)
+      .single()
+    
+    if (error) throw error
+    
+    return {
+      id: data.user_id,
+      email: data.user?.email,
+      name: data.name,
+      lastName: data.last_name,
+      middleName: data.middle_name,
+      company: data.company,
+      department: data.department,
+      role: data.role,
+      blocked: data.blocked,
+      external: data.external,
+      apiToken: data.api_token,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    }
   },
   
   delete: async (id: number) => {
-    await api.delete(`/users/${id}`)
+    // Delete the profile first
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('user_id', id)
+    
+    if (profileError) throw profileError
+    
+    // Then delete the auth user (this requires admin privileges)
+    const { error: authError } = await supabase.auth.admin.deleteUser(id.toString())
+    if (authError) throw authError
   },
   
   generateApiToken: async (id: number) => {
-    const response = await api.put(`/users/${id}/generate_api_token`)
-    return response.data.user
+    const apiToken = crypto.randomUUID()
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ api_token: apiToken })
+      .eq('user_id', id)
+      .select(`
+        *,
+        user:auth.users(email)
+      `)
+      .single()
+    
+    if (error) throw error
+    
+    return {
+      id: data.user_id,
+      email: data.user?.email,
+      name: data.name,
+      lastName: data.last_name,
+      middleName: data.middle_name,
+      company: data.company,
+      department: data.department,
+      role: data.role,
+      blocked: data.blocked,
+      external: data.external,
+      apiToken: data.api_token,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    }
   },
   
   clearApiToken: async (id: number) => {
-    const response = await api.delete(`/users/${id}/clear_api_token`)
-    return response.data.user
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ api_token: null })
+      .eq('user_id', id)
+      .select(`
+        *,
+        user:auth.users(email)
+      `)
+      .single()
+    
+    if (error) throw error
+    
+    return {
+      id: data.user_id,
+      email: data.user?.email,
+      name: data.name,
+      lastName: data.last_name,
+      middleName: data.middle_name,
+      company: data.company,
+      department: data.department,
+      role: data.role,
+      blocked: data.blocked,
+      external: data.external,
+      apiToken: data.api_token,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    }
   },
   
   lookup: async (query: string) => {
-    const response = await api.get(`/users/lookup?q=${query}`)
-    return response.data
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        user:auth.users(email)
+      `)
+      .or(`name.ilike.%${query}%,last_name.ilike.%${query}%,middle_name.ilike.%${query}%`)
+      .limit(10)
+    
+    if (error) throw error
+    
+    return data?.map(profile => ({
+      id: profile.user_id,
+      text: `${profile.name} ${profile.last_name}`
+    })) || []
+  }
+}
+
+export const ordersAPI = {
+  getAll: async (params?: any) => {
+    // Mock implementation - replace with actual Supabase queries when orders table is created
+    return []
+  },
+  
+  getByCode: async (code: string) => {
+    // Mock implementation
+    return null
+  },
+  
+  create: async (orderData: any) => {
+    // Mock implementation
+    return null
+  },
+  
+  update: async (code: string, orderData: any) => {
+    // Mock implementation
+    return null
+  },
+  
+  searchByCode: async (code: string) => {
+    // Mock implementation
+    return null
+  },
+  
+  searchByExtCode: async (extCode: string) => {
+    // Mock implementation
+    return null
   }
 }
 
 export const orderTypesAPI = {
-  getAll: async () => {
-    const response = await api.get('/admin/order_types')
-    return response.data.order_types
-  },
-  
-  getById: async (id: number) => {
-    const response = await api.get(`/admin/order_types/${id}`)
-    return response.data.order_type
-  },
-  
-  create: async (file: File) => {
-    const formData = new FormData()
-    formData.append('order_type[file]', file)
-    
-    const response = await api.post('/admin/order_types', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
-    return response.data
-  },
-  
-  activate: async (id: number) => {
-    const response = await api.put(`/admin/order_types/${id}/activate`)
-    return response.data
-  },
-  
-  dismiss: async (id: number) => {
-    await api.delete(`/admin/order_types/${id}/dismiss`)
-  },
-  
-  delete: async (id: number) => {
-    await api.delete(`/admin/order_types/${id}`)
-  },
-  
-  lookup: async (query: string) => {
-    const response = await api.get(`/admin/order_types/lookup?q=${query}`)
-    return response.data
-  }
+  // Mock implementations - replace with actual Supabase queries when order_types table is created
+  getAll: async () => [],
+  getById: async (id: number) => null,
+  create: async (file: File) => null,
+  activate: async (id: number) => null,
+  dismiss: async (id: number) => null,
+  delete: async (id: number) => null,
+  lookup: async (query: string) => []
 }
 
 export const tasksAPI = {
-  getAll: async (entityClass: string = 'order') => {
-    const response = await api.get('/widget/tasks', {
-      params: { entity_class: entityClass }
-    })
-    return response.data.tasks
-  },
-  
-  getById: async (id: string, processKey: string) => {
-    const response = await api.get(`/widget/tasks/${id}`, {
-      params: { process_key: processKey }
-    })
-    return response.data
-  },
-  
-  submit: async (id: string, formData: any, processKey: string) => {
-    await api.put(`/widget/tasks/${id}/form`, {
-      form_data: formData,
-      process_key: processKey
-    })
-  },
-  
-  claim: async (id: string, processKey: string) => {
-    await api.post(`/widget/tasks/${id}/claim`, {
-      process_key: processKey
-    })
-  },
-  
-  cancel: async (id: string, processKey: string) => {
-    await api.delete(`/widget/tasks/${id}`, {
-      params: { process_key: processKey }
-    })
-  }
+  // Mock implementations - replace with actual task management system integration
+  getAll: async (entityClass: string = 'order') => [],
+  getById: async (id: string, processKey: string) => null,
+  submit: async (id: string, formData: any, processKey: string) => null,
+  claim: async (id: string, processKey: string) => null,
+  cancel: async (id: string, processKey: string) => null
 }
 
 export const profilesAPI = {
   getAll: async (params?: any) => {
-    const response = await api.get('/profiles', { params })
-    return response.data.profiles
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+    if (error) throw error
+    return data || []
   },
   
   getById: async (id: number) => {
-    const response = await api.get(`/profiles/${id}`)
-    return response.data.profile
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (error) throw error
+    return data
   },
   
   create: async (profileData: any) => {
-    const response = await api.post('/profiles', { profile: profileData })
-    return response.data.profile
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select()
+      .single()
+    if (error) throw error
+    return data
   },
   
   update: async (id: number, profileData: any) => {
-    const response = await api.put(`/profiles/${id}`, { profile: profileData })
-    return response.data.profile
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(profileData)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
   }
 }
 
 export const printAPI = {
-  printOrder: async (orderCode: string, convertToPdf: boolean = false) => {
-    const response = await api.get('/imprint/prints/print', {
-      params: {
-        order_code: orderCode,
-        convert_to_pdf: convertToPdf
-      }
-    })
-    return response
-  },
-  
-  printMultipleOrders: async (orderCodes: string[], convertToPdf: boolean = false) => {
-    const response = await api.post('/imprint/prints/print_task', {
-      order_codes: orderCodes,
-      convert_to_pdf: convertToPdf
-    })
-    return response.data
-  }
+  // Mock implementations - replace with actual print service integration
+  printOrder: async (orderCode: string, convertToPdf: boolean = false) => null,
+  printMultipleOrders: async (orderCodes: string[], convertToPdf: boolean = false) => null
 }
 
 export const businessProcessAPI = {
-  getButtons: async (entityCode: string, entityType: string, entityClass: string) => {
-    const response = await api.get('/widget/buttons', {
-      params: {
-        entity_code: entityCode,
-        entity_type: entityType,
-        entity_class: entityClass
-      }
-    })
-    return response.data
-  },
-  
-  startProcess: async (bpCode: string, entityCode: string, entityType: string, entityClass: string) => {
-    const response = await api.post('/widget/buttons', {
-      bp_code: bpCode,
-      entity_code: entityCode,
-      entity_type: entityType,
-      entity_class: entityClass
-    })
-    return response.data
-  }
+  // Mock implementations - replace with actual business process integration
+  getButtons: async (entityCode: string, entityType: string, entityClass: string) => ({ buttons: [], bp_running: false }),
+  startProcess: async (bpCode: string, entityCode: string, entityType: string, entityClass: string) => null
 }
-
-export default api

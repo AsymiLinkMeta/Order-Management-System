@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { authAPI } from '../services/api'
 import { User } from '../types'
 
 interface AuthState {
@@ -15,13 +17,44 @@ export function useAuth() {
   })
 
   useEffect(() => {
-    // Simulate authentication check
     const checkAuth = async () => {
       try {
-        // In a real app, this would check for a valid token/session
-        const savedUser = localStorage.getItem('user')
-        if (savedUser) {
-          const user = JSON.parse(savedUser)
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session?.user) {
+          // Get the user profile from the profiles table
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single()
+          
+          if (error) {
+            console.error('Error fetching profile:', error)
+            setAuthState({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false
+            })
+            return
+          }
+          
+          const user: User = {
+            id: parseInt(session.user.id),
+            email: session.user.email!,
+            name: profile.name,
+            lastName: profile.last_name,
+            middleName: profile.middle_name,
+            company: profile.company,
+            department: profile.department,
+            role: profile.role,
+            blocked: profile.blocked,
+            external: profile.external,
+            apiToken: profile.api_token,
+            createdAt: profile.created_at,
+            updatedAt: profile.updated_at
+          }
+          
           setAuthState({
             user,
             isAuthenticated: true,
@@ -50,40 +83,50 @@ export function useAuth() {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
       
-      // Simulate login validation (accept any email/password for demo)
       if (!email || !password) {
         throw new Error('Email and password are required')
       }
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Create mock user based on email
-      const firstName = email.split('@')[0].split('.')[0] || 'John'
-      const lastName = email.split('@')[0].split('.')[1] || 'Doe'
-      
-      const mockUser: User = {
-        id: 1,
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name: firstName.charAt(0).toUpperCase() + firstName.slice(1),
-        lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
-        company: 'Example Corp',
-        department: 'IT',
-        role: 'admin',
-        blocked: false,
-        external: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        password
+      })
+      
+      if (error) throw error
+      if (!data.user) throw new Error('Login failed')
+      
+      // Get the user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .single()
+      
+      if (profileError) throw profileError
+      
+      const user: User = {
+        id: parseInt(data.user.id),
+        email: data.user.email!,
+        name: profile.name,
+        lastName: profile.last_name,
+        middleName: profile.middle_name,
+        company: profile.company,
+        department: profile.department,
+        role: profile.role,
+        blocked: profile.blocked,
+        external: profile.external,
+        apiToken: profile.api_token,
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at
       }
 
-      localStorage.setItem('user', JSON.stringify(mockUser))
       setAuthState({
-        user: mockUser,
+        user,
         isAuthenticated: true,
         isLoading: false
       })
 
-      return mockUser
+      return user
     } catch (error) {
       setAuthState(prev => ({
         ...prev,
@@ -95,8 +138,8 @@ export function useAuth() {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('user')
+  const logout = async () => {
+    await supabase.auth.signOut()
     setAuthState({
       user: null,
       isAuthenticated: false,
