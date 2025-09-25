@@ -198,6 +198,16 @@ export const tasksAPI = {
 }
 
 export const profilesAPI = {
+  getAll: async (params?: any) => {
+    const response = await api.get('/profiles', { params })
+    return response.data.profiles
+  },
+  
+  getById: async (id: number) => {
+    const response = await api.get(`/profiles/${id}`)
+    return response.data.profile
+  },
+  
   create: async (profileData: any) => {
     const response = await api.post('/profiles', { profile: profileData })
     return response.data.profile
@@ -206,6 +216,49 @@ export const profilesAPI = {
   update: async (id: number, profileData: any) => {
     const response = await api.put(`/profiles/${id}`, { profile: profileData })
     return response.data.profile
+  }
+}
+
+export const printAPI = {
+  printOrder: async (orderCode: string, convertToPdf: boolean = false) => {
+    const response = await api.get('/imprint/prints/print', {
+      params: {
+        order_code: orderCode,
+        convert_to_pdf: convertToPdf
+      }
+    })
+    return response
+  },
+  
+  printMultipleOrders: async (orderCodes: string[], convertToPdf: boolean = false) => {
+    const response = await api.post('/imprint/prints/print_task', {
+      order_codes: orderCodes,
+      convert_to_pdf: convertToPdf
+    })
+    return response.data
+  }
+}
+
+export const businessProcessAPI = {
+  getButtons: async (entityCode: string, entityType: string, entityClass: string) => {
+    const response = await api.get('/widget/buttons', {
+      params: {
+        entity_code: entityCode,
+        entity_type: entityType,
+        entity_class: entityClass
+      }
+    })
+    return response.data
+  },
+  
+  startProcess: async (bpCode: string, entityCode: string, entityType: string, entityClass: string) => {
+    const response = await api.post('/widget/buttons', {
+      bp_code: bpCode,
+      entity_code: entityCode,
+      entity_type: entityType,
+      entity_class: entityClass
+    })
+    return response.data
   }
 }
 

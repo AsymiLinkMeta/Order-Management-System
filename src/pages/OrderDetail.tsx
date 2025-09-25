@@ -1,15 +1,35 @@
 import React from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Edit, Calendar, User, FileText, Settings } from 'lucide-react'
+import { ArrowLeft, Edit, Calendar, User, FileText, Settings, Printer } from 'lucide-react'
 import { useOrders } from '../hooks/useOrders'
+import { usePrint } from '../hooks/usePrint'
 import StatusBadge from '../components/StatusBadge'
-import TaskWidget from '../components/TaskWidget'
+import BusinessProcessButtons from '../components/BusinessProcessButtons'
+import PrintActions from '../components/PrintActions'
 
 const OrderDetail: React.FC = () => {
   const { code } = useParams<{ code: string }>()
   const { orders, isLoading } = useOrders()
+  const { printOrder } = usePrint()
 
   const order = orders.find(o => o.code === code)
+
+  const handleProcessStart = async (processCode: string) => {
+    try {
+      // This would call the business process start API
+      console.log(`Starting process ${processCode} for order ${code}`)
+    } catch (err) {
+      console.error('Failed to start process:', err)
+    }
+  }
+
+  const handlePrint = async (options: { convertToPdf: boolean; orderCodes: string[] }) => {
+    try {
+      await printOrder(options.orderCodes[0], options.convertToPdf)
+    } catch (err) {
+      console.error('Print failed:', err)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -83,10 +103,11 @@ const OrderDetail: React.FC = () => {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Business Process Widget */}
-          <TaskWidget 
+          <BusinessProcessButtons
             entityCode={order.code}
             entityType={order.orderType.code}
             entityClass="order"
+            onProcessStart={handleProcessStart}
           />
 
           {/* Custom Fields */}
@@ -179,10 +200,13 @@ const OrderDetail: React.FC = () => {
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Order
               </button>
-              <button className="btn btn-secondary w-full justify-start">
-                <FileText className="h-4 w-4 mr-2" />
-                Print Order
-              </button>
+              <div className="w-full">
+                <PrintActions
+                  orderCode={order.code}
+                  printFormCode={order.orderType.printFormCode}
+                  onPrint={handlePrint}
+                />
+              </div>
               <button className="btn btn-secondary w-full justify-start">
                 <Calendar className="h-4 w-4 mr-2" />
                 Update Due Date

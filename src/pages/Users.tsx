@@ -1,55 +1,59 @@
 import React, { useState } from 'react'
-import { Plus, Search, Edit, Trash2, Key, Shield } from 'lucide-react'
-import { User } from '../types'
+import { Plus, Search, Edit, Trash2, Key, Shield, AlertCircle } from 'lucide-react'
+import { useUsers } from '../hooks/useUsers'
+import { useAuth } from '../hooks/useAuth'
+import UserForm from '../components/UserForm'
+import ConfirmDialog from '../components/ConfirmDialog'
+import DataTable from '../components/DataTable'
 
 const Users: React.FC = () => {
+  const { user: currentUser } = useAuth()
+  const { users, isLoading, error, createUser, updateUser, deleteUser, generateApiToken, clearApiToken } = useUsers()
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddUser, setShowAddUser] = useState(false)
+  const [editingUser, setEditingUser] = useState<any>(null)
+  const [deletingUser, setDeletingUser] = useState<any>(null)
+  const [tokenAction, setTokenAction] = useState<{ user: any; action: 'generate' | 'clear' } | null>(null)
 
-  // Mock data - in a real app, this would come from an API
-  const users: User[] = [
-    {
-      id: 1,
-      email: 'john.doe@example.com',
-      name: 'John',
-      lastName: 'Doe',
-      middleName: 'Michael',
-      company: 'Example Corp',
-      department: 'IT',
-      role: 'admin',
-      blocked: false,
-      external: false,
-      apiToken: 'abc123...',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    },
-    {
-      id: 2,
-      email: 'jane.smith@example.com',
-      name: 'Jane',
-      lastName: 'Smith',
-      company: 'Example Corp',
-      department: 'Sales',
-      role: 'user',
-      blocked: false,
-      external: false,
-      createdAt: '2024-01-02T00:00:00Z',
-      updatedAt: '2024-01-02T00:00:00Z'
-    },
-    {
-      id: 3,
-      email: 'bob.johnson@example.com',
-      name: 'Bob',
-      lastName: 'Johnson',
-      company: 'Partner Corp',
-      department: 'Support',
-      role: 'vip',
-      blocked: false,
-      external: true,
-      createdAt: '2024-01-03T00:00:00Z',
-      updatedAt: '2024-01-03T00:00:00Z'
+  const handleCreateUser = async (userData: any) => {
+    try {
+      await createUser(userData)
+      setShowAddUser(false)
+    } catch (err) {
+      console.error('Failed to create user:', err)
     }
-  ]
+  }
+
+  const handleUpdateUser = async (userData: any) => {
+    try {
+      await updateUser(editingUser.id, userData)
+      setEditingUser(null)
+    } catch (err) {
+      console.error('Failed to update user:', err)
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    try {
+      await deleteUser(deletingUser.id)
+      setDeletingUser(null)
+    } catch (err) {
+      console.error('Failed to delete user:', err)
+    }
+  }
+
+  const handleTokenAction = async () => {
+    try {
+      if (tokenAction?.action === 'generate') {
+        await generateApiToken(tokenAction.user.id)
+      } else if (tokenAction?.action === 'clear') {
+        await clearApiToken(tokenAction.user.id)
+      }
+      setTokenAction(null)
+    } catch (err) {
+      console.error('Failed to manage API token:', err)
+    }
+  }
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -66,6 +70,133 @@ const Users: React.FC = () => {
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.company.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const columns = [
+    {
+      key: 'name',
+      label: 'Name',
+      sortable: true,
+      render: (_: any, user: any) => (
+        <div>
+          <div className="font-medium text-gray-900">
+            {user.name} {user.lastName}
+          </div>
+          {user.middleName && (
+            <div className="text-sm text-gray-500">{user.middleName}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      sortable: true
+    },
+    {
+      key: 'role',
+      label: 'Role',
+      sortable: true,
+      render: (role: string) => (
+        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(role)}`}>
+          {role.charAt(0).toUpperCase() + role.slice(1)}
+        </span>
+      )
+    },
+    {
+      key: 'company',
+      label: 'Company',
+      sortable: true
+    },
+    {
+      key: 'department',
+      label: 'Department',
+      sortable: true
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (_: any, user: any) => (
+        <div className="flex items-center space-x-2">
+          {user.blocked && (
+            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+              Blocked
+            </span>
+          )}
+          {user.external && (
+            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+              External
+            </span>
+          )}
+          {!user.blocked && !user.external && (
+            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+              Active
+            </span>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'apiToken',
+      label: 'API Token',
+      render: (apiToken: string) => (
+        apiToken ? (
+          <div className="flex items-center space-x-2">
+            <Shield className="h-4 w-4 text-green-500" />
+            <span className="text-xs text-gray-500">Active</span>
+          </div>
+        ) : (
+          <span className="text-xs text-gray-400">None</span>
+        )
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_: any, user: any) => (
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => setEditingUser(user)}
+            className="text-primary-600 hover:text-primary-500"
+            title="Edit user"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => setTokenAction({ user, action: user.apiToken ? 'clear' : 'generate' })}
+            className="text-primary-600 hover:text-primary-500"
+            title={user.apiToken ? 'Clear API token' : 'Generate API token'}
+          >
+            <Key className="h-4 w-4" />
+          </button>
+          <button 
+            onClick={() => setDeletingUser(user)}
+            className="text-red-600 hover:text-red-500"
+            title="Delete user"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      )
+    }
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading users</h3>
+        <p className="mt-1 text-sm text-gray-500">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -105,86 +236,12 @@ const Users: React.FC = () => {
       {/* Users table */}
       <div className="card">
         <div className="card-content">
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-head">Name</th>
-                  <th className="table-head">Email</th>
-                  <th className="table-head">Role</th>
-                  <th className="table-head">Company</th>
-                  <th className="table-head">Department</th>
-                  <th className="table-head">Status</th>
-                  <th className="table-head">API Token</th>
-                  <th className="table-head">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="table-row">
-                    <td className="table-cell">
-                      <div className="font-medium text-gray-900">
-                        {user.name} {user.lastName}
-                      </div>
-                      {user.middleName && (
-                        <div className="text-sm text-gray-500">{user.middleName}</div>
-                      )}
-                    </td>
-                    <td className="table-cell text-gray-600">{user.email}</td>
-                    <td className="table-cell">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                      </span>
-                    </td>
-                    <td className="table-cell text-gray-600">{user.company}</td>
-                    <td className="table-cell text-gray-600">{user.department}</td>
-                    <td className="table-cell">
-                      <div className="flex items-center space-x-2">
-                        {user.blocked && (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                            Blocked
-                          </span>
-                        )}
-                        {user.external && (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
-                            External
-                          </span>
-                        )}
-                        {!user.blocked && !user.external && (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="table-cell">
-                      {user.apiToken ? (
-                        <div className="flex items-center space-x-2">
-                          <Shield className="h-4 w-4 text-green-500" />
-                          <span className="text-xs text-gray-500">Active</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">None</span>
-                      )}
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex items-center space-x-2">
-                        <button className="text-primary-600 hover:text-primary-500">
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button className="text-primary-600 hover:text-primary-500">
-                          <Key className="h-4 w-4" />
-                        </button>
-                        <button className="text-red-600 hover:text-red-500">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            data={filteredUsers}
+            columns={columns}
+            searchable={false}
+            emptyMessage="No users found"
+          />
         </div>
       </div>
 
@@ -193,64 +250,63 @@ const Users: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setShowAddUser(false)} />
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full">
               <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New User</h3>
-                <form className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label">First Name</label>
-                      <input type="text" className="form-input mt-1" />
-                    </div>
-                    <div>
-                      <label className="form-label">Last Name</label>
-                      <input type="text" className="form-input mt-1" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="form-label">Email</label>
-                    <input type="email" className="form-input mt-1" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label">Company</label>
-                      <input type="text" className="form-input mt-1" />
-                    </div>
-                    <div>
-                      <label className="form-label">Department</label>
-                      <input type="text" className="form-input mt-1" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="form-label">Role</label>
-                    <select className="form-input mt-1">
-                      <option value="user">User</option>
-                      <option value="vip">VIP User</option>
-                      <option value="admin">Administrator</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Password</label>
-                    <input type="password" className="form-input mt-1" />
-                  </div>
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddUser(false)}
-                      className="btn btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      Add User
-                    </button>
-                  </div>
-                </form>
+                <UserForm
+                  onSubmit={handleCreateUser}
+                  onCancel={() => setShowAddUser(false)}
+                />
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setEditingUser(null)} />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full">
+              <div className="p-6">
+                <UserForm
+                  user={editingUser}
+                  onSubmit={handleUpdateUser}
+                  onCancel={() => setEditingUser(null)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deletingUser}
+        title="Delete User"
+        message={`Are you sure you want to delete ${deletingUser?.name} ${deletingUser?.lastName}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={handleDeleteUser}
+        onCancel={() => setDeletingUser(null)}
+      />
+
+      {/* API Token Confirmation */}
+      <ConfirmDialog
+        isOpen={!!tokenAction}
+        title={tokenAction?.action === 'generate' ? 'Generate API Token' : 'Clear API Token'}
+        message={
+          tokenAction?.action === 'generate'
+            ? `Generate a new API token for ${tokenAction?.user?.name}? This will replace any existing token.`
+            : `Clear the API token for ${tokenAction?.user?.name}? This will revoke access for API clients.`
+        }
+        confirmText={tokenAction?.action === 'generate' ? 'Generate' : 'Clear'}
+        cancelText="Cancel"
+        type={tokenAction?.action === 'clear' ? 'danger' : 'warning'}
+        onConfirm={handleTokenAction}
+        onCancel={() => setTokenAction(null)}
+      />
     </div>
   )
 }

@@ -1,62 +1,187 @@
 import React, { useState } from 'react'
-import { Plus, Search, Eye, Trash2, Upload, CheckCircle, XCircle } from 'lucide-react'
-import { OrderType } from '../types'
+import { Plus, Search, Eye, Trash2, Upload, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { useOrderTypes } from '../hooks/useOrderTypes'
+import { useAuth } from '../hooks/useAuth'
+import OrderTypeUpload from '../components/OrderTypeUpload'
+import ConfirmDialog from '../components/ConfirmDialog'
+import DataTable from '../components/DataTable'
 
 const OrderTypes: React.FC = () => {
+  const { user } = useAuth()
+  const { orderTypes, isLoading, error, uploadOrderType, activateOrderType, dismissOrderType, deleteOrderType } = useOrderTypes()
   const [searchTerm, setSearchTerm] = useState('')
   const [showUpload, setShowUpload] = useState(false)
+  const [viewingOrderType, setViewingOrderType] = useState<any>(null)
+  const [deletingOrderType, setDeletingOrderType] = useState<any>(null)
+  const [actionOrderType, setActionOrderType] = useState<{ orderType: any; action: 'activate' | 'dismiss' } | null>(null)
 
-  // Mock data - in a real app, this would come from an API
-  const orderTypes: OrderType[] = [
-    {
-      id: 1,
-      code: 'new_customer',
-      name: 'New Customer',
-      active: true,
-      fields: {
-        customerName: { type: 'string', label: 'Customer Name', required: true },
-        customerPhone: { type: 'string', label: 'Customer Phone', required: true },
-        customerEmail: { type: 'string', label: 'Customer Email', required: false },
-        installDate: { type: 'datetime', label: 'Install Date', required: true }
-      },
-      printFormCode: 'new_customer_form',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    },
-    {
-      id: 2,
-      code: 'support_request',
-      name: 'Support Request',
-      active: true,
-      fields: {
-        problemDescription: { type: 'string', label: 'Problem Description', required: true },
-        contractNumber: { type: 'number', label: 'Contract Number', required: false },
-        callBack: { type: 'boolean', label: 'Callback Required', required: false }
-      },
-      printFormCode: 'support_form',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    },
-    {
-      id: 3,
-      code: 'vacation_request',
-      name: 'Vacation Request',
-      active: false,
-      fields: {
-        employee: { type: 'string', label: 'Employee', required: true },
-        startDate: { type: 'datetime', label: 'Start Date', required: true },
-        endDate: { type: 'datetime', label: 'End Date', required: true },
-        reason: { type: 'string', label: 'Reason', required: false }
-      },
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
+  const handleUpload = async (file: File) => {
+    try {
+      await uploadOrderType(file)
+      setShowUpload(false)
+    } catch (err) {
+      console.error('Failed to upload order type:', err)
     }
-  ]
+  }
+
+  const handleAction = async () => {
+    try {
+      if (actionOrderType?.action === 'activate') {
+        await activateOrderType(actionOrderType.orderType.id)
+      } else if (actionOrderType?.action === 'dismiss') {
+        await dismissOrderType(actionOrderType.orderType.id)
+      }
+      setActionOrderType(null)
+    } catch (err) {
+      console.error('Failed to perform action:', err)
+    }
+  }
+
+  const handleDelete = async () => {
+    try {
+      await deleteOrderType(deletingOrderType.id)
+      setDeletingOrderType(null)
+    } catch (err) {
+      console.error('Failed to delete order type:', err)
+    }
+  }
 
   const filteredOrderTypes = orderTypes.filter(orderType =>
     orderType.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     orderType.code.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const columns = [
+    {
+      key: 'name',
+      label: 'Name',
+      sortable: true,
+      render: (name: string, orderType: any) => (
+        <button
+          onClick={() => setViewingOrderType(orderType)}
+          className="font-medium text-primary-600 hover:text-primary-500 text-left"
+        >
+          {name}
+        </button>
+      )
+    },
+    {
+      key: 'code',
+      label: 'Code',
+      sortable: true,
+      render: (code: string) => (
+        <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+          {code}
+        </code>
+      )
+    },
+    {
+      key: 'active',
+      label: 'Status',
+      sortable: true,
+      render: (active: boolean) => (
+        <div className="flex items-center space-x-2">
+          {active ? (
+            <>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm text-green-700">Active</span>
+            </>
+          ) : (
+            <>
+              <XCircle className="h-4 w-4 text-gray-400" />
+              <span className="text-sm text-gray-500">Inactive</span>
+            </>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'fields',
+      label: 'Fields',
+      render: (fields: any) => (
+        <span className="text-sm text-gray-600">
+          {Object.keys(fields).length} fields
+        </span>
+      )
+    },
+    {
+      key: 'printFormCode',
+      label: 'Print Form',
+      render: (printFormCode: string) => (
+        printFormCode ? (
+          <code className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+            {printFormCode}
+          </code>
+        ) : (
+          <span className="text-sm text-gray-400">None</span>
+        )
+      )
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      sortable: true,
+      render: (date: string) => new Date(date).toLocaleDateString()
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_: any, orderType: any) => (
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => setViewingOrderType(orderType)}
+            className="text-primary-600 hover:text-primary-500"
+            title="View details"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          {!orderType.active && (
+            <button 
+              onClick={() => setActionOrderType({ orderType, action: 'activate' })}
+              className="text-green-600 hover:text-green-500"
+              title="Activate order type"
+            >
+              <CheckCircle className="h-4 w-4" />
+            </button>
+          )}
+          {!orderType.active && (
+            <button 
+              onClick={() => setActionOrderType({ orderType, action: 'dismiss' })}
+              className="text-yellow-600 hover:text-yellow-500"
+              title="Dismiss order type"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          )}
+          <button 
+            onClick={() => setDeletingOrderType(orderType)}
+            className="text-red-600 hover:text-red-500"
+            title="Delete order type"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      )
+    }
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading order types</h3>
+        <p className="mt-1 text-sm text-gray-500">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -96,77 +221,12 @@ const OrderTypes: React.FC = () => {
       {/* Order Types table */}
       <div className="card">
         <div className="card-content">
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-head">Name</th>
-                  <th className="table-head">Code</th>
-                  <th className="table-head">Status</th>
-                  <th className="table-head">Fields</th>
-                  <th className="table-head">Print Form</th>
-                  <th className="table-head">Created</th>
-                  <th className="table-head">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrderTypes.map((orderType) => (
-                  <tr key={orderType.id} className="table-row">
-                    <td className="table-cell">
-                      <div className="font-medium text-gray-900">{orderType.name}</div>
-                    </td>
-                    <td className="table-cell">
-                      <code className="text-sm bg-gray-100 px-2 py-1 rounded">
-                        {orderType.code}
-                      </code>
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex items-center space-x-2">
-                        {orderType.active ? (
-                          <>
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-sm text-green-700">Active</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-500">Inactive</span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="table-cell">
-                      <span className="text-sm text-gray-600">
-                        {Object.keys(orderType.fields).length} fields
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      {orderType.printFormCode ? (
-                        <code className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                          {orderType.printFormCode}
-                        </code>
-                      ) : (
-                        <span className="text-sm text-gray-400">None</span>
-                      )}
-                    </td>
-                    <td className="table-cell text-gray-500">
-                      {new Date(orderType.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="table-cell">
-                      <div className="flex items-center space-x-2">
-                        <button className="text-primary-600 hover:text-primary-500">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button className="text-red-600 hover:text-red-500">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            data={filteredOrderTypes}
+            columns={columns}
+            searchable={false}
+            emptyMessage="No order types found"
+          />
         </div>
       </div>
 
@@ -175,37 +235,91 @@ const OrderTypes: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setShowUpload(false)} />
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full">
               <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Order Type</h3>
-                <div className="space-y-4">
+                <OrderTypeUpload
+                  onUpload={handleUpload}
+                  onCancel={() => setShowUpload(false)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Order Type Modal */}
+      {viewingOrderType && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setViewingOrderType(null)} />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-medium text-gray-900">{viewingOrderType.name}</h3>
+                  <div className="flex items-center space-x-2">
+                    {!viewingOrderType.active && (
+                      <>
+                        <button
+                          onClick={() => setActionOrderType({ orderType: viewingOrderType, action: 'activate' })}
+                          className="btn btn-success text-sm"
+                        >
+                          Activate
+                        </button>
+                        <button
+                          onClick={() => setActionOrderType({ orderType: viewingOrderType, action: 'dismiss' })}
+                          className="btn btn-warning text-sm"
+                        >
+                          Dismiss
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="space-y-6">
                   <div>
-                    <label className="form-label">YAML File</label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
-                      <div className="space-y-1 text-center">
-                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600">
-                          <label className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500">
-                            <span>Upload a file</span>
-                            <input type="file" className="sr-only" accept=".yml,.yaml" />
-                          </label>
-                          <p className="pl-1">or drag and drop</p>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Basic Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="form-label">Code</label>
+                        <div className="mt-1 p-2 bg-gray-50 rounded-md text-sm">{viewingOrderType.code}</div>
+                      </div>
+                      <div>
+                        <label className="form-label">Print Form Code</label>
+                        <div className="mt-1 p-2 bg-gray-50 rounded-md text-sm">
+                          {viewingOrderType.printFormCode || 'None'}
                         </div>
-                        <p className="text-xs text-gray-500">YAML files only</p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowUpload(false)}
-                      className="btn btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      Upload
-                    </button>
+                  
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Custom Fields</h4>
+                    <div className="space-y-3">
+                      {Object.entries(viewingOrderType.fields).map(([fieldName, fieldDef]: [string, any]) => (
+                        <div key={fieldName} className="border border-gray-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-medium text-gray-900">{fieldDef.label}</h5>
+                              <p className="text-sm text-gray-500">Field: {fieldName}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {fieldDef.type}
+                              </span>
+                              {fieldDef.required && (
+                                <span className="ml-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                  Required
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {fieldDef.description && (
+                            <p className="mt-2 text-sm text-gray-600">{fieldDef.description}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -213,6 +327,34 @@ const OrderTypes: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deletingOrderType}
+        title="Delete Order Type"
+        message={`Are you sure you want to delete the order type "${deletingOrderType?.name}"? Existing orders won't be affected.`}
+        confirmText="Yes, delete"
+        cancelText="Cancel"
+        type="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeletingOrderType(null)}
+      />
+
+      {/* Action Confirmation */}
+      <ConfirmDialog
+        isOpen={!!actionOrderType}
+        title={actionOrderType?.action === 'activate' ? 'Activate Order Type' : 'Dismiss Order Type'}
+        message={
+          actionOrderType?.action === 'activate'
+            ? `Activate the order type "${actionOrderType?.orderType?.name}"? This will make it available for creating new orders.`
+            : `Dismiss the order type "${actionOrderType?.orderType?.name}"? This will permanently remove it from the system.`
+        }
+        confirmText={actionOrderType?.action === 'activate' ? 'Activate' : 'Dismiss'}
+        cancelText="Cancel"
+        type={actionOrderType?.action === 'dismiss' ? 'danger' : 'warning'}
+        onConfirm={handleAction}
+        onCancel={() => setActionOrderType(null)}
+      />
     </div>
   )
 }

@@ -1,25 +1,90 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plus, Search, Filter, Eye, AlertCircle } from 'lucide-react'
+import { Plus, Search, Filter, Eye, AlertCircle, Calendar, User as UserIcon } from 'lucide-react'
 import { useOrders } from '../hooks/useOrders'
+import { useProfiles } from '../hooks/useProfiles'
+import { usePrint } from '../hooks/usePrint'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
 import OrderForm from '../components/OrderForm'
+import CustomFieldFilter from '../components/CustomFieldFilter'
+import ProfileManager from '../components/ProfileManager'
+import OrderSearch from '../components/OrderSearch'
+import PrintActions from '../components/PrintActions'
+import { useAuth } from '../hooks/useAuth'
 
 const Orders: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { orders, isLoading, error, createOrder } = useOrders()
+  const { createProfile, updateProfile } = useProfiles()
+  const { printMultipleOrders } = usePrint()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [orderTypeFilter, setOrderTypeFilter] = useState<string>('all')
+  const [userFilter, setUserFilter] = useState<string>('all')
+  const [customFieldFilters, setCustomFieldFilters] = useState<Record<string, any>>({})
   const [showFilters, setShowFilters] = useState(false)
   const [showCreateOrder, setShowCreateOrder] = useState(false)
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState<'filter' | 'search'>('filter')
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.orderType.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || order.state === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesOrderType = orderTypeFilter === 'all' || order.orderType.id.toString() === orderTypeFilter
+    const matchesUser = userFilter === 'all' || 
+                       (userFilter === 'empty' && !order.user) ||
+                       (order.user && order.user.id.toString() === userFilter)
+    
+    // Apply custom field filters
+    const matchesCustomFields = Object.entries(customFieldFilters).every(([fieldName, filter]) => {
+      const fieldValue = order.data[fieldName]
+      if (!filter.value) return true
+      
+      switch (filter.type) {
+        case 'string':
+          return fieldValue && fieldValue.toLowerCase().includes(filter.value.toLowerCase())
+        case 'number':
+          return fieldValue === filter.value
+        case 'boolean':
+          return fieldValue.toString() === filter.value
+        case 'datetime':
+          if (!fieldValue) return true
+          const date = new Date(fieldValue)
+          const fromDate = filter.value.from ? new Date(filter.value.from) : null
+          const toDate = filter.value.to ? new Date(filter.value.to) : null
+          return (!fromDate || date >= fromDate) && (!toDate || date <= toDate)
+        default:
+          return true
+      }
+    })
+    
+    return matchesSearch && matchesStatus && matchesOrderType && matchesUser && matchesCustomFields
   })
+
+  const handleOrderSearch = async (criteria: { field: string; value: string }) => {
+    try {
+      // This would typically call the search API endpoint
+      const searchResults = orders.filter(order => {
+        if (criteria.field === 'code') {
+          return order.code === criteria.value
+        } else if (criteria.field === 'ext_code') {
+          return order.extCode === criteria.value
+        }
+        return false
+      })
+      
+      if (searchResults.length > 0) {
+        navigate(`/orders/${searchResults[0].code}`)
+      } else {
+        alert(`Order not found with ${criteria.field}: ${criteria.value}`)
+      }
+    } catch (err) {
+      console.error('Search failed:', err)
+    }
+  }
 
   const handleCreateOrder = async (orderData: any) => {
     try {
@@ -31,7 +96,49 @@ const Orders: React.FC = () => {
     }
   }
 
+  const handlePrint = async (options: { convertToPdf: boolean; orderCodes: string[] }) => {
+    try {
+      await printMultipleOrders(options.orderCodes, options.convertToPdf)
+    } catch (err) {
+      console.error('Print failed:', err)
+    }
+  }
+
+  const handleProfileSave = async (profileData: any) => {
+    try {
+      await createProfile(profileData)
+    } catch (err) {
+      console.error('Failed to save profile:', err)
+    }
+  }
+
+  const uniqueOrderTypes = Array.from(new Set(orders.map(o => o.orderType.id)))
+    .map(id => orders.find(o => o.orderType.id === id)?.orderType)
+    .filter(Boolean)
+
+  const uniqueUsers = Array.from(new Set(orders.map(o => o.user?.id).filter(Boolean)))
+    .map(id => orders.find(o => o.user?.id === id)?.user)
+    .filter(Boolean)
+
   const columns = [
+    {
+      key: 'select',
+      label: '',
+      render: (_: any, order: any) => (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          checked={selectedOrders.includes(order.code)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedOrders(prev => [...prev, order.code])
+            } else {
+              setSelectedOrders(prev => prev.filter(code => code !== order.code))
+            }
+          }}
+        />
+      )
+    },
     {
       key: 'code',
       label: 'Order Code',
@@ -67,6 +174,21 @@ const Orders: React.FC = () => {
       key: 'user',
       label: 'Assigned To',
       render: (user: any) => user ? `${user.name} ${user.lastName}` : 'Unassigned'
+    },
+    {
+      key: 'extCode',
+      label: 'External Code',
+      render: (extCode: string) => extCode || '—'
+    },
+    {
+      key: 'archived',
+      label: 'Archived',
+      render: (archived: boolean) => archived ? 'Yes' : 'No'
+    },
+    {
+      key: 'estimatedExecDate',
+      label: 'Due Date',
+      render: (date: string) => date ? new Date(date).toLocaleDateString() : '—'
     },
     {
       key: 'actions',
@@ -122,43 +244,132 @@ const Orders: React.FC = () => {
       {/* Filters */}
       <div className="card">
         <div className="card-content">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  className="form-input pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <select
-                className="form-input"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="to_execute">New</option>
-                <option value="in_progress">In Progress</option>
-                <option value="done">Completed</option>
-              </select>
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mb-4">
+            <nav className="-mb-px flex space-x-8">
               <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="btn btn-secondary"
+                onClick={() => setActiveTab('filter')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'filter'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
-                <Filter className="h-4 w-4" />
+                Filter Records
               </button>
-            </div>
+              <button
+                onClick={() => setActiveTab('search')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'search'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Search for Record
+              </button>
+            </nav>
           </div>
+
+          {activeTab === 'filter' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="form-label">Order Type</label>
+                  <select
+                    className="form-input mt-1"
+                    value={orderTypeFilter}
+                    onChange={(e) => setOrderTypeFilter(e.target.value)}
+                  >
+                    <option value="all">All Types</option>
+                    {uniqueOrderTypes.map(orderType => (
+                      <option key={orderType!.id} value={orderType!.id.toString()}>
+                        {orderType!.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="form-label">Status</label>
+                  <select
+                    className="form-input mt-1"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="to_execute">New</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Completed</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="form-label">User</label>
+                  <select
+                    className="form-input mt-1"
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value)}
+                  >
+                    <option value="all">All Users</option>
+                    <option value="empty">Unassigned</option>
+                    {uniqueUsers.map(user => (
+                      <option key={user!.id} value={user!.id.toString()}>
+                        {user!.name} {user!.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex items-end">
+                  <button className="btn btn-primary w-full">
+                    <Search className="h-4 w-4 mr-2" />
+                    Search
+                  </button>
+                </div>
+              </div>
+              
+              {/* Custom Field Filters */}
+              {orderTypeFilter !== 'all' && (
+                <CustomFieldFilter
+                  orderType={uniqueOrderTypes.find(ot => ot!.id.toString() === orderTypeFilter)}
+                  onFilterChange={setCustomFieldFilters}
+                />
+              )}
+            </div>
+          ) : (
+            <OrderSearch onSearch={handleOrderSearch} />
+          )}
         </div>
       </div>
 
       {/* Orders Table */}
       <div className="card">
+        <div className="card-header">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Orders</h3>
+              <p className="text-sm text-gray-600">
+                Found {filteredOrders.length} orders
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              {selectedOrders.length > 0 && (
+                <PrintActions
+                  orderCodes={selectedOrders}
+                  onPrint={handlePrint}
+                />
+              )}
+              {orderTypeFilter !== 'all' && user && (
+                <ProfileManager
+                  orderTypeId={parseInt(orderTypeFilter)}
+                  userId={user.id}
+                  fields={uniqueOrderTypes.find(ot => ot!.id.toString() === orderTypeFilter)?.fields || {}}
+                  onSave={handleProfileSave}
+                />
+              )}
+            </div>
+          </div>
+        </div>
         <div className="card-content">
           <DataTable
             data={filteredOrders}
