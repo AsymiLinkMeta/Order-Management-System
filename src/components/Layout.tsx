@@ -82,7 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-br from-[#0B1120] via-[#0F2B5B] to-[#0B1120] border-r border-gray-700">
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
             <div className="flex flex-shrink-0 items-center px-4">
-              <h1 className="text-xl font-bold text-white">HOMS</h1>
+              <h1 className="text-xl font-bold text-white">AsymiLink Meta</h1>
               <span className="ml-2 text-sm text-gray-300">Order Management</span>
             </div>
             <nav className="mt-5 flex-1 space-y-1 px-2">
