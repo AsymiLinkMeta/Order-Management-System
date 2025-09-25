@@ -111,11 +111,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
         {/* Top bar */}
-        <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
+        <div className="sticky top-0 z-10 bg-gradient-to-br from-[#0B1120] via-[#0F2B5B] to-[#0B1120] shadow-sm border-b border-gray-700">
           <div className="flex h-16 items-center gap-x-4 px-4 sm:gap-x-6 sm:px-6 lg:px-8">
             <button
               type="button"
-              className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+              className="-m-2.5 p-2.5 text-white lg:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-6 w-6" />
@@ -125,14 +125,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex flex-1"></div>
               <div className="flex items-center gap-x-4 lg:gap-x-6">
                 <div className="flex items-center gap-x-2">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-white">
                     {user?.name} {user?.lastName}
                   </span>
-                  <span className="text-xs text-gray-500">({user?.role})</span>
+                  <span className="text-xs text-gray-300">({user?.role})</span>
                 </div>
                 <button
                   onClick={logout}
-                  className="flex items-center gap-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  className="flex items-center gap-x-2 text-sm text-gray-300 hover:text-white transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   Sign out
