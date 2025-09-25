@@ -1,77 +1,37 @@
 import React from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Edit, Calendar, User, FileText } from 'lucide-react'
+import { ArrowLeft, Edit, Calendar, User, FileText, Settings } from 'lucide-react'
+import { useOrders } from '../hooks/useOrders'
+import StatusBadge from '../components/StatusBadge'
+import TaskWidget from '../components/TaskWidget'
 
 const OrderDetail: React.FC = () => {
   const { code } = useParams<{ code: string }>()
+  const { orders, isLoading } = useOrders()
 
-  // Mock data - in a real app, this would be fetched based on the code
-  const order = {
-    id: 1,
-    code: code || 'ORD-1234',
-    extCode: 'EXT-001',
-    state: 'in_progress',
-    archived: false,
-    data: {
-      customerName: 'John Doe',
-      customerPhone: '+1234567890',
-      customerEmail: 'john@example.com',
-      customerCity: 'New York',
-      customerStreet: 'Main Street',
-      customerHouse: '123',
-      installDate: '2024-02-01T10:00:00Z'
-    },
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T10:30:00Z',
-    estimatedExecDate: '2024-02-01T10:00:00Z',
-    orderType: {
-      id: 1,
-      code: 'new_customer',
-      name: 'New Customer',
-      active: true,
-      fields: {
-        customerName: { type: 'string', label: 'Customer Name', required: true },
-        customerPhone: { type: 'string', label: 'Customer Phone', required: true },
-        customerEmail: { type: 'string', label: 'Customer Email', required: false },
-        customerCity: { type: 'string', label: 'Customer City', required: true },
-        customerStreet: { type: 'string', label: 'Customer Street', required: true },
-        customerHouse: { type: 'string', label: 'Customer House', required: true },
-        installDate: { type: 'datetime', label: 'Install Date', required: true }
-      },
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    },
-    user: {
-      id: 1,
-      email: 'john@example.com',
-      name: 'John',
-      lastName: 'Doe',
-      company: 'Example Corp',
-      department: 'Sales',
-      role: 'user' as const,
-      blocked: false,
-      external: false,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    }
+  const order = orders.find(o => o.code === code)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'to_execute': return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'done': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'to_execute': return 'New'
-      case 'in_progress': return 'In Progress'
-      case 'done': return 'Completed'
-      default: return status
-    }
+  if (!order) {
+    return (
+      <div className="text-center py-12">
+        <FileText className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Order not found</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          The order with code "{code}" could not be found.
+        </p>
+        <Link to="/orders" className="mt-4 btn btn-primary">
+          Back to Orders
+        </Link>
+      </div>
+    )
   }
 
   const formatFieldValue = (value: any, fieldType: string) => {
@@ -104,9 +64,7 @@ const OrderDetail: React.FC = () => {
               {order.code} - {order.orderType.name}
             </h1>
             <div className="flex items-center space-x-4 mt-1">
-              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.state)}`}>
-                {getStatusText(order.state)}
-              </span>
+              <StatusBadge status={order.state} />
               {order.extCode && (
                 <span className="text-sm text-gray-500">
                   External: {order.extCode}
@@ -122,8 +80,15 @@ const OrderDetail: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Order Details */}
+        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Business Process Widget */}
+          <TaskWidget 
+            entityCode={order.code}
+            entityType={order.orderType.code}
+            entityClass="order"
+          />
+
           {/* Custom Fields */}
           <div className="card">
             <div className="card-header">
@@ -142,23 +107,6 @@ const OrderDetail: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Business Process Controls */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="text-lg font-medium text-gray-900">Business Process</h3>
-            </div>
-            <div className="card-content">
-              <div className="flex space-x-3">
-                <button className="btn btn-primary">
-                  Start Process
-                </button>
-                <button className="btn btn-secondary">
-                  View Process History
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Sidebar */}
@@ -172,7 +120,15 @@ const OrderDetail: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <FileText className="h-4 w-4 text-gray-400" />
                 <div>
-                  <div className="text-sm font-medium">Order Code</div>
+                  <div className="text-sm font-medium">Type</div>
+                  <div className="text-sm text-gray-600">{order.orderType.name}</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Settings className="h-4 w-4 text-gray-400" />
+                <div>
+                  <div className="text-sm font-medium">Code</div>
                   <div className="text-sm text-gray-600">{order.code}</div>
                 </div>
               </div>

@@ -10,65 +10,53 @@ import {
   CheckCircle
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useOrders } from '../hooks/useOrders'
+import { useTasks } from '../hooks/useTasks'
+import StatusBadge from '../components/StatusBadge'
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth()
+  const { orders, isLoading: ordersLoading } = useOrders()
+  const { tasks, isLoading: tasksLoading } = useTasks()
+
+  const totalOrders = orders.length
+  const pendingOrders = orders.filter(o => o.state === 'to_execute').length
+  const inProgressOrders = orders.filter(o => o.state === 'in_progress').length
+  const completedOrders = orders.filter(o => o.state === 'done').length
+  const activeTasks = tasks.filter(t => t.assignee).length
 
   const stats = [
     {
       name: 'Total Orders',
-      value: '1,234',
+      value: totalOrders.toString(),
       change: '+12%',
-      changeType: 'positive',
+      changeType: 'positive' as const,
       icon: FileText,
     },
     {
       name: 'Active Tasks',
-      value: '56',
+      value: activeTasks.toString(),
       change: '+4%',
-      changeType: 'positive',
+      changeType: 'positive' as const,
       icon: CheckSquare,
     },
     {
       name: 'Pending Orders',
-      value: '23',
+      value: pendingOrders.toString(),
       change: '-8%',
-      changeType: 'negative',
+      changeType: 'negative' as const,
       icon: Clock,
     },
     {
-      name: 'Completed Today',
-      value: '89',
+      name: 'Completed Orders',
+      value: completedOrders.toString(),
       change: '+15%',
-      changeType: 'positive',
+      changeType: 'positive' as const,
       icon: CheckCircle,
     },
   ]
 
-  const recentOrders = [
-    { code: 'ORD-1234', type: 'New Customer', status: 'in_progress', user: 'John Doe' },
-    { code: 'ORD-1235', type: 'Support Request', status: 'to_execute', user: 'Jane Smith' },
-    { code: 'ORD-1236', type: 'Vacation Request', status: 'done', user: 'Bob Johnson' },
-    { code: 'ORD-1237', type: 'Pizza Order', status: 'in_progress', user: 'Alice Brown' },
-  ]
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'to_execute': return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'done': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'to_execute': return 'New'
-      case 'in_progress': return 'In Progress'
-      case 'done': return 'Completed'
-      default: return status
-    }
-  }
+  const recentOrders = orders.slice(0, 4)
 
   return (
     <div className="space-y-6">
@@ -152,13 +140,13 @@ const Dashboard: React.FC = () => {
                         {order.code}
                       </Link>
                     </td>
-                    <td className="table-cell text-gray-900">{order.type}</td>
+                    <td className="table-cell text-gray-900">{order.orderType.name}</td>
                     <td className="table-cell">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        {getStatusText(order.status)}
-                      </span>
+                      <StatusBadge status={order.state} size="sm" />
                     </td>
-                    <td className="table-cell text-gray-500">{order.user}</td>
+                    <td className="table-cell text-gray-500">
+                      {order.user ? `${order.user.name} ${order.user.lastName}` : 'Unassigned'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -166,6 +154,12 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {(ordersLoading || tasksLoading) && (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

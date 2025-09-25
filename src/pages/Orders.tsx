@@ -1,102 +1,18 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Plus, Search, Filter, Eye } from 'lucide-react'
-import { Order } from '../types'
+import { Link, useNavigate } from 'react-router-dom'
+import { Plus, Search, Filter, Eye, AlertCircle } from 'lucide-react'
+import { useOrders } from '../hooks/useOrders'
+import DataTable from '../components/DataTable'
+import StatusBadge from '../components/StatusBadge'
+import OrderForm from '../components/OrderForm'
 
 const Orders: React.FC = () => {
+  const navigate = useNavigate()
+  const { orders, isLoading, error, createOrder } = useOrders()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
-
-  // Mock data - in a real app, this would come from an API
-  const orders: Order[] = [
-    {
-      id: 1,
-      code: 'ORD-1234',
-      extCode: 'EXT-001',
-      state: 'in_progress',
-      archived: false,
-      data: { customerName: 'John Doe', customerPhone: '+1234567890' },
-      createdAt: '2024-01-15T10:30:00Z',
-      updatedAt: '2024-01-15T10:30:00Z',
-      orderType: {
-        id: 1,
-        code: 'new_customer',
-        name: 'New Customer',
-        active: true,
-        fields: {},
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z'
-      },
-      user: {
-        id: 1,
-        email: 'john@example.com',
-        name: 'John',
-        lastName: 'Doe',
-        company: 'Example Corp',
-        department: 'Sales',
-        role: 'user',
-        blocked: false,
-        external: false,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 2,
-      code: 'ORD-1235',
-      state: 'to_execute',
-      archived: false,
-      data: { problemDescription: 'System issue', contractNumber: 12345 },
-      createdAt: '2024-01-14T14:20:00Z',
-      updatedAt: '2024-01-14T14:20:00Z',
-      orderType: {
-        id: 2,
-        code: 'support_request',
-        name: 'Support Request',
-        active: true,
-        fields: {},
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 3,
-      code: 'ORD-1236',
-      state: 'done',
-      archived: false,
-      data: { employee: 'Jane Smith', vacationDays: 5 },
-      createdAt: '2024-01-13T09:15:00Z',
-      updatedAt: '2024-01-13T09:15:00Z',
-      orderType: {
-        id: 3,
-        code: 'vacation_request',
-        name: 'Vacation Request',
-        active: true,
-        fields: {},
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z'
-      }
-    }
-  ]
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'to_execute': return 'bg-yellow-100 text-yellow-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'done': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'to_execute': return 'New'
-      case 'in_progress': return 'In Progress'
-      case 'done': return 'Completed'
-      default: return status
-    }
-  }
+  const [showCreateOrder, setShowCreateOrder] = useState(false)
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,6 +20,85 @@ const Orders: React.FC = () => {
     const matchesStatus = statusFilter === 'all' || order.state === statusFilter
     return matchesSearch && matchesStatus
   })
+
+  const handleCreateOrder = async (orderData: any) => {
+    try {
+      const newOrder = await createOrder(orderData)
+      setShowCreateOrder(false)
+      navigate(`/orders/${newOrder.code}`)
+    } catch (err) {
+      console.error('Failed to create order:', err)
+    }
+  }
+
+  const columns = [
+    {
+      key: 'code',
+      label: 'Order Code',
+      sortable: true,
+      render: (value: string) => (
+        <Link
+          to={`/orders/${value}`}
+          className="font-medium text-primary-600 hover:text-primary-500"
+        >
+          {value}
+        </Link>
+      )
+    },
+    {
+      key: 'orderType',
+      label: 'Type',
+      sortable: true,
+      render: (orderType: any) => orderType.name
+    },
+    {
+      key: 'state',
+      label: 'Status',
+      sortable: true,
+      render: (state: string) => <StatusBadge status={state as any} />
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      sortable: true,
+      render: (date: string) => new Date(date).toLocaleDateString()
+    },
+    {
+      key: 'user',
+      label: 'Assigned To',
+      render: (user: any) => user ? `${user.name} ${user.lastName}` : 'Unassigned'
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_: any, order: any) => (
+        <Link
+          to={`/orders/${order.code}`}
+          className="text-primary-600 hover:text-primary-500"
+        >
+          <Eye className="h-4 w-4" />
+        </Link>
+      )
+    }
+  ]
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading orders</h3>
+        <p className="mt-1 text-sm text-gray-500">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -115,7 +110,10 @@ const Orders: React.FC = () => {
             Manage and track all orders in the system
           </p>
         </div>
-        <button className="btn btn-primary">
+        <button 
+          onClick={() => setShowCreateOrder(true)}
+          className="btn btn-primary"
+        >
           <Plus className="h-4 w-4 mr-2" />
           New Order
         </button>
@@ -159,69 +157,35 @@ const Orders: React.FC = () => {
         </div>
       </div>
 
-      {/* Orders table */}
+      {/* Orders Table */}
       <div className="card">
         <div className="card-content">
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-head">Order Code</th>
-                  <th className="table-head">Type</th>
-                  <th className="table-head">Status</th>
-                  <th className="table-head">Created</th>
-                  <th className="table-head">Assigned To</th>
-                  <th className="table-head">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="table-row">
-                    <td className="table-cell">
-                      <Link
-                        to={`/orders/${order.code}`}
-                        className="font-medium text-primary-600 hover:text-primary-500"
-                      >
-                        {order.code}
-                      </Link>
-                    </td>
-                    <td className="table-cell">{order.orderType.name}</td>
-                    <td className="table-cell">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.state)}`}>
-                        {getStatusText(order.state)}
-                      </span>
-                    </td>
-                    <td className="table-cell text-gray-500">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="table-cell text-gray-500">
-                      {order.user ? `${order.user.name} ${order.user.lastName}` : 'Unassigned'}
-                    </td>
-                    <td className="table-cell">
-                      <Link
-                        to={`/orders/${order.code}`}
-                        className="text-primary-600 hover:text-primary-500"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {filteredOrders.length === 0 && (
-            <div className="text-center py-12">
-              <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No orders found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Try adjusting your search or filter criteria.
-              </p>
-            </div>
-          )}
+          <DataTable
+            data={filteredOrders}
+            columns={columns}
+            searchable={false}
+            emptyMessage="No orders found. Try adjusting your search or filter criteria."
+            onRowClick={(order) => navigate(`/orders/${order.code}`)}
+          />
         </div>
       </div>
+
+      {/* Create Order Modal */}
+      {showCreateOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setShowCreateOrder(false)} />
+            <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <OrderForm
+                  onSubmit={handleCreateOrder}
+                  onCancel={() => setShowCreateOrder(false)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
