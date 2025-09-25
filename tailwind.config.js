@@ -23,6 +23,7 @@ export default {
           50: '#fffbeb',
           500: '#f59e0b',
           600: '#d97706',
+          700: '#b45309',
         },
         error: {
           50: '#fef2f2',
