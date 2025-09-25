@@ -104,7 +104,58 @@ const Dashboard: React.FC = () => {
           )
         })}
       </div>
+      {/* Quick actions */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Link
+          to="/orders"
+          className="card hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="card-content">
+            <div className="flex items-center">
+              <FileText className="h-8 w-8 text-primary-600" />
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Manage Orders</h3>
+                <p className="text-sm text-gray-500">View and manage all orders</p>
+              </div>
+            </div>
+          </div>
+        </Link>
 
+        <Link
+          to="/tasks"
+          className="card hover:shadow-md transition-shadow cursor-pointer"
+        >
+          <div className="card-content">
+            <div className="flex items-center">
+              <CheckSquare className="h-8 w-8 text-success-600" />
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">My Tasks</h3>
+                <p className="text-sm text-gray-500">View assigned tasks</p>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {user?.role === 'admin' && (
+          <Link
+            to="/users"
+            className="card hover:shadow-md transition-shadow cursor-pointer"
+          >
+            <div className="card-content">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-warning-600" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-medium text-gray-900">User Management</h3>
+                  <p className="text-sm text-gray-500">Manage system users</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
+      </div>
+    </div>
+  )
+}
       {/* Recent orders */}
       <div className="card">
         <div className="card-header">
@@ -161,57 +212,5 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Link
-          to="/orders"
-          className="card hover:shadow-md transition-shadow cursor-pointer"
-        >
-          <div className="card-content">
-            <div className="flex items-center">
-              <FileText className="h-8 w-8 text-primary-600" />
-              <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Manage Orders</h3>
-                <p className="text-sm text-gray-500">View and manage all orders</p>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          to="/tasks"
-          className="card hover:shadow-md transition-shadow cursor-pointer"
-        >
-          <div className="card-content">
-            <div className="flex items-center">
-              <CheckSquare className="h-8 w-8 text-success-600" />
-              <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">My Tasks</h3>
-                <p className="text-sm text-gray-500">View assigned tasks</p>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        {user?.role === 'admin' && (
-          <Link
-            to="/users"
-            className="card hover:shadow-md transition-shadow cursor-pointer"
-          >
-            <div className="card-content">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-warning-600" />
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">User Management</h3>
-                  <p className="text-sm text-gray-500">Manage system users</p>
-                </div>
-              </div>
-            </div>
-          </Link>
-        )}
-      </div>
-    </div>
-  )
-}
 
 export default Dashboard
