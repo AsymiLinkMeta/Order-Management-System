@@ -232,65 +232,6 @@ const Tasks: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Upload Modal */}
-      {showUpload && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setShowUpload(false)} />
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
-              <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Order Type YAML</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="form-label">YAML File</label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
-                      <div className="space-y-1 text-center">
-                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                        <div className="flex text-sm text-gray-600">
-                          <label className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500">
-                            <span>Upload a file</span>
-                            <input type="file" className="sr-only" accept=".yml,.yaml" />
-                          </label>
-                          <p className="pl-1">or drag and drop</p>
-                        </div>
-                        <p className="text-xs text-gray-500">YAML files only</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div className="text-sm text-blue-800">
-                      <strong>Example YAML structure:</strong>
-                      <pre className="mt-2 text-xs bg-blue-100 p-2 rounded overflow-x-auto">
-{`order_type:
-  code: my_order_type
-  name: My Order Type
-  fields:
-    field_name:
-      type: string
-      label: Field Label
-      required: true`}
-                      </pre>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowUpload(false)}
-                      className="btn btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      Upload & Validate
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
