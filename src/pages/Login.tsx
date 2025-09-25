@@ -6,16 +6,18 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const { login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     setIsLoading(true)
     
     try {
       await login(email, password)
     } catch (error) {
-      console.error('Login failed:', error)
+      setError(error instanceof Error ? error.message : 'Login failed')
     } finally {
       setIsLoading(false)
     }
@@ -70,6 +72,12 @@ const Login: React.FC = () => {
               />
             </div>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <div className="text-sm text-red-800">{error}</div>
+            </div>
+          )}
 
           <div>
             <button

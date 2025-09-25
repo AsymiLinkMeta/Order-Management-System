@@ -47,27 +47,45 @@ export function useAuth() {
   }, [])
 
   const login = async (email: string, password: string) => {
-    // Simulate login
-    const mockUser: User = {
-      id: 1,
-      email,
-      name: 'John',
-      lastName: 'Doe',
-      company: 'Example Corp',
-      department: 'IT',
-      role: 'admin',
-      blocked: false,
-      external: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+    try {
+      // Simulate login validation (accept any email/password for demo)
+      if (!email || !password) {
+        throw new Error('Email and password are required')
+      }
 
-    localStorage.setItem('user', JSON.stringify(mockUser))
-    setAuthState({
-      user: mockUser,
-      isAuthenticated: true,
-      isLoading: false
-    })
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Create mock user based on email
+      const mockUser: User = {
+        id: 1,
+        email,
+        name: email.split('@')[0].split('.')[0] || 'John',
+        lastName: email.split('@')[0].split('.')[1] || 'Doe',
+        company: 'Example Corp',
+        department: 'IT',
+        role: 'admin',
+        blocked: false,
+        external: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      localStorage.setItem('user', JSON.stringify(mockUser))
+      setAuthState({
+        user: mockUser,
+        isAuthenticated: true,
+        isLoading: false
+      })
+
+      return mockUser
+    } catch (error) {
+      setAuthState(prev => ({
+        ...prev,
+        isLoading: false
+      }))
+      throw error
+    }
   }
 
   const logout = () => {
