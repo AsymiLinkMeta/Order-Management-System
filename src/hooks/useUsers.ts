@@ -12,7 +12,7 @@ export function useUsers() {
       setIsLoading(true)
       setError(null)
       const data = await usersAPI.getAll()
-      setUsers(data)
+      setUsers(data || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch users')
     } finally {
