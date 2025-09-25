@@ -92,7 +92,7 @@
     "typescript": "^5.9.2",
     "webpack-cli": "^6.0.1"
   },
-  "packageManager": "yarn@4.7.0"
+  "packageManager": "yarn@4.7.0",
   "resolutions": {
     "ajv": "8.8.0",
     "ajv-keywords": "5.1.0"
