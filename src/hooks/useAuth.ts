@@ -48,6 +48,8 @@ export function useAuth() {
 
   const login = async (email: string, password: string) => {
     try {
+      setAuthState(prev => ({ ...prev, isLoading: true }))
+      
       // Simulate login validation (accept any email/password for demo)
       if (!email || !password) {
         throw new Error('Email and password are required')
@@ -57,11 +59,14 @@ export function useAuth() {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Create mock user based on email
+      const firstName = email.split('@')[0].split('.')[0] || 'John'
+      const lastName = email.split('@')[0].split('.')[1] || 'Doe'
+      
       const mockUser: User = {
         id: 1,
         email,
-        name: email.split('@')[0].split('.')[0] || 'John',
-        lastName: email.split('@')[0].split('.')[1] || 'Doe',
+        name: firstName.charAt(0).toUpperCase() + firstName.slice(1),
+        lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
         company: 'Example Corp',
         department: 'IT',
         role: 'admin',
@@ -82,6 +87,8 @@ export function useAuth() {
     } catch (error) {
       setAuthState(prev => ({
         ...prev,
+        user: null,
+        isAuthenticated: false,
         isLoading: false
       }))
       throw error

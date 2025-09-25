@@ -3,11 +3,11 @@ import { useAuth } from '../hooks/useAuth'
 import { LogIn } from 'lucide-react'
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('admin@example.com')
+  const [password, setPassword] = useState('password123')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const { login } = useAuth()
+  const { login, isLoading: authLoading } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,6 +22,8 @@ const Login: React.FC = () => {
       setIsLoading(false)
     }
   }
+
+  const finalLoading = isLoading || authLoading
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -53,6 +55,7 @@ const Login: React.FC = () => {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={finalLoading}
               />
             </div>
             <div>
@@ -69,6 +72,7 @@ const Login: React.FC = () => {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={finalLoading}
               />
             </div>
           </div>
@@ -82,10 +86,10 @@ const Login: React.FC = () => {
           <div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={finalLoading}
               className="btn btn-primary w-full"
             >
-              {isLoading ? (
+              {finalLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Signing in...
@@ -98,7 +102,7 @@ const Login: React.FC = () => {
 
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Demo credentials: any email/password combination
+              Demo: Use any email/password or try the pre-filled values
             </p>
           </div>
         </form>
