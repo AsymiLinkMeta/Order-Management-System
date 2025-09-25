@@ -91,7 +91,7 @@ export const usersAPI = {
   },
   
   create: async (userData: any) => {
-    const response = await api.post('/users', { user: userData })
+    const response = await api.post('/users/add', { user: userData })
     return response.data.user
   },
   
