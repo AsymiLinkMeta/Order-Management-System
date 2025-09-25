@@ -154,8 +154,6 @@ const Dashboard: React.FC = () => {
         )}
       </div>
     </div>
-  )
-}
       {/* Recent orders */}
       <div className="card">
         <div className="card-header">
@@ -211,6 +209,7 @@ const Dashboard: React.FC = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       )}
-
+  )
+}
 
 export default Dashboard
