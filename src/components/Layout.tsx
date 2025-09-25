@@ -79,11 +79,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
+        <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-br from-[#0B1120] via-[#0F2B5B] to-[#0B1120] border-r border-gray-700">
           <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
             <div className="flex flex-shrink-0 items-center px-4">
-              <h1 className="text-xl font-bold text-gray-900">HOMS</h1>
-              <span className="ml-2 text-sm text-gray-500">Order Management</span>
+              <h1 className="text-xl font-bold text-white">HOMS</h1>
+              <span className="ml-2 text-sm text-gray-300">Order Management</span>
             </div>
             <nav className="mt-5 flex-1 space-y-1 px-2">
               {navigation.map((item) => {
@@ -94,8 +94,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     to={item.href}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                       isActive(item.href)
-                        ? 'bg-primary-100 text-primary-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-white/20 text-white'
+                        : 'text-gray-300 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
